@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Display</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f2f2f2;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input {
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        .api-buttons button {
+            background-color: #0672ff;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .section-buttons button {
+            background-color: #000000e7;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .search-box button {
+            background-color: #0672ff;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+        }
+
+
+        button:hover {
+            background-color: #333;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+            background-color: #fff;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #1783e7;
+            color: white;
+        }
+
+        .section-buttons {
+            position: relative;
+            top: 90px; /* Adjust the top property as needed */
+            margin-bottom: 50px;
+         }
+
+        .link-buttons {
+            margin-top: 20px;
+        }
+
+        .link-buttons a {
+            text-decoration: none;
+            color: #000;
+            padding: 10px 15px;
+            margin: 5px;
+            border: 1px solid #000;
+            display: inline-block;
+            background-color: #fff;
+        }
+
+        .link-buttons a:hover {
+            background-color: #000;
+            color: #fff;
+        }
+        
+        .search-box {
+    margin-top: -20px;
+    text-align: right;
+    display: flex; /* Use flexbox */
+    align-items: center; /* Align items vertically in the center */
+    justify-content: flex-end; /* Align items to the right */
+}
+
+.search-box label {
+    margin-right: 10px; /* Adjust the margin as needed */
+}
+
+.search-box button {
+    margin-top: 0px; /* Add a unit (e.g., px) to the margin-top property */
+}
+    </style>
+</head>
+<body>
+    <!-- API Buttons Group -->
+    <div class="api-buttons">
+    <label for="apiKey">API Key:</label>
+    <input type="text" id="apiKey">
+    <button onclick="saveApiKey()">Save API Key</button>
+    <button onclick="refreshData()">Refresh Data</button>
+
+    <!-- Section Buttons -->
+    <div class="section-buttons">
+        <button data-section="medical">Medical Items</button>
+        <button data-section="boosters">Boosters</button>
+        <button data-section="drugs">Drugs</button>
+        <button data-section="temporary">Temporary Items</button>
+    </div>
+
+    <!-- Search Box -->
+    <div class="search-box">
+        <label for="quantityFilter">Show Only Items Less than:</label>
+        <input type="number" id="quantityFilter" min="0">
+        <button onclick="filterByQuantity()">Filter</button>
+    </div>
+
+    <!-- Data Table -->
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>Available</th>
+                <th>Loaned</th>
+                <th>Loaned To</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <!-- Link Buttons -->
+    <div class="link-buttons">
+        <a href="https://www.torn.com/factions.php?step=your#/tab=armoury" target="_blank">Faction's Armoury</a>
+        <a href="https://www.torn.com/imarket.php" target="_blank">Item Market</a>
+    </div>
+
+    
+    <script>
+        // Function to make API call and update the table
+        function getData(selection) {
+            const apiKey = document.getElementById('apiKey').value;
+            const apiUrl = `https://api.torn.com/faction/?selections=${selection}&key=${apiKey}`;
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('#data-table tbody');
+                    tableBody.innerHTML = '';
+
+                    // Check if the expected data is present
+                    if (data && data[selection] && Array.isArray(data[selection])) {
+                        if (selection === 'temporary') {
+                            data[selection].forEach(item => {
+                                const row = tableBody.insertRow();
+                                row.insertCell(0).textContent = item.name;
+                                row.insertCell(1).textContent = item.type;
+                                row.insertCell(2).textContent = item.quantity;
+                                row.insertCell(3).textContent = item.available;
+                                row.insertCell(4).textContent = item.loaned === 0 ? 'No' : 'Yes';
+                                row.insertCell(5).textContent = item.loaned_to || 'No one';
+                            });
+                        } else {
+                            data[selection].forEach(item => {
+                                const row = tableBody.insertRow();
+                                row.insertCell(0).textContent = item.name;
+                                row.insertCell(1).textContent = item.type;
+                                row.insertCell(2).textContent = item.quantity;
+                                row.insertCell(3).textContent = ''; // Blank columns for non-temporary sections
+                                row.insertCell(4).textContent = '';
+                                row.insertCell(5).textContent = '';
+                            });
+                        }
+                        // Sort the table after fetching data
+                        sortTable();
+                    } else {
+                        console.error(`Unexpected data format for ${selection}:`, data);
+                    }
+                })
+                .catch(error => console.error(`Error fetching ${selection} data:`, error));
+        }
+
+        // Function to save API key locally
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKey').value;
+            localStorage.setItem('apiKey', apiKey);
+        }
+
+        // Function to sort the table by quantity (Z to A)
+        function sortTable() {
+            const tableBody = document.querySelector('#data-table tbody');
+            const rows = Array.from(tableBody.rows);
+
+            rows.sort((a, b) => {
+                const quantityA = parseInt(a.cells[2].textContent) || 0;
+                const quantityB = parseInt(b.cells[2].textContent) || 0;
+
+                return quantityB - quantityA;
+            });
+
+            // Re-append sorted rows to the table
+            tableBody.innerHTML = '';
+            rows.forEach(row => tableBody.appendChild(row));
+        }
+
+        // Function to filter items based on quantity
+        function filterByQuantity() {
+            const maxQuantity = parseInt(document.getElementById('quantityFilter').value) || 0;
+            const tableBody = document.querySelector('#data-table tbody');
+            const rows = Array.from(tableBody.rows);
+
+            rows.forEach(row => {
+                const quantity = parseInt(row.cells[2].textContent) || 0;
+                row.style.display = quantity <= maxQuantity ? '' : 'none';
+            });
+        }
+
+        // Function to refresh data using the saved API key
+        function refreshData() {
+            const savedApiKey = localStorage.getItem('apiKey');
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+                // Fetch data for the currently selected section
+                const activeButton = document.querySelector('.section-buttons button.active');
+                if (activeButton) {
+                    const activeSection = activeButton.getAttribute('data-section');
+                    getData(activeSection);
+                }
+            } else {
+                alert('Please save the API key first.');
+            }
+        }
+
+        // Add click event listeners to section buttons
+        document.querySelectorAll('.section-buttons button').forEach(button => {
+            button.addEventListener('click', function () {
+                // Set the active button class
+                document.querySelectorAll('.section-buttons button').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Fetch data for the selected section
+                const section = this.getAttribute('data-section');
+                getData(section);
+            });
+        });
+
+        // Initial data load on page load
+        window.onload = function() {
+            refreshData();
+        };
+    </script>
+
+</body>
+</html>
